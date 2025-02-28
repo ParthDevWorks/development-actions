@@ -1,0 +1,46 @@
+name: Bump PyProject Dev Version
+description: Bump PyProject Dev Version
+inputs:
+  branch:
+    description: "Branch to update"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update version in pyproject.toml
+      run: |
+        # Extract current version
+        CURRENT_VERSION=$(grep -E '^version =' pyproject.toml | awk -F'"' '{print $2}')
+
+        # Do a regex match on the version 
+        if [[ "$CURRENT_VERSION" =~ (.*dev)([0-9]*)$ ]]; then 
+          BASE_VERSION=${BASH_REMATCH[1]} 
+          DEV_SUFFIX=${BASH_REMATCH[2]} 
+          INCREMENTED_VERSION=${BASE_VERSION}$((DEV_SUFFIX + 1)) 
+          echo "Bump version from ${CURRENT_VERSION} to ${INCREMENTED_VERSION}"; 
+        else 
+          echo "Could not parse version string to increment the suffix. Abort" 
+          exit 1 
+        fi
+
+        # Update pyproject.toml with new dev version
+        sed -i "s/^version = \"${CURRENT_VERSION}\"/version = \"${INCREMENTED_VERSION}\"/" pyproject.toml
+
+        echo "CURRENT_VERSION=${CURRENT_VERSION}" >> $GITHUB_ENV
+        echo "INCREMENTED_VERSION=${INCREMENTED_VERSION}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add pyproject.toml
+        git commit -m "Update dev version from ${env.CURRENT_VERSION} to ${env.INCREMENTED_VERSION}"
+        git push origin ${{ inputs.branch }}
+      shell: bash
