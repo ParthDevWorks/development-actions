@@ -1,0 +1,30 @@
+name: Free Disk Space
+description: Free Runner Disk Space to prevent out-of-disk space errors
+runs:
+  using: "composite"
+  steps:
+    - name: "Check Disk Space pre-clear"
+      run: |
+        df -h
+      shell: bash
+
+    - name: Free Disk Space
+      run: |
+        sudo swapoff -a 
+        sudo rm -f /swapfile 
+        sudo apt clean 
+        DOCKER_IMAGES=$(docker image ls -aq) 
+        if [ -n "$DOCKER_IMAGES" ]; then 
+          echo "Removing images "$DOCKER_IMAGES"" 
+          docker rmi ${DOCKER_IMAGES} 
+        else 
+          echo "No images to remove" 
+        fi 
+        sudo rm -rf /usr/share/dotnet 
+        sudo rm -rf /usr/local/lib/android
+      shell: bash
+
+    - name: "Check Disk Space post-clear"
+      run: |
+        df -h
+      shell: bash
