@@ -1,0 +1,52 @@
+name: Install Python and Poetry
+description: Install Python and Poetry
+inputs:
+  python-version:
+    description: "Python version to use"
+    required: true
+  poetry-version:
+    description: "Poetry version to use"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up python ${{ inputs.python-version }}
+      uses: actions/setup-python@v5
+      id: setup-python-version
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Setup pipx environment Variables
+      id: pipx-env-setup
+      # From https://github.com/pypa/pipx/discussions/1051
+      # pipx default home and bin dir are not writable by the cache action
+      # so override them here and add the bin dir to PATH for later steps.
+      # This also ensures the pipx cache only contains poetry
+      run: |
+        SEP="${{ !startsWith(runner.os, 'windows') && '/' || '\\' }}" 
+        PIPX_CACHE="${{ github.workspace }}${SEP}pipx_cache" 
+        echo "pipx-cache-path=${PIPX_CACHE}" >> $GITHUB_OUTPUT 
+        echo "pipx-version=$(pipx --version)" >> $GITHUB_OUTPUT 
+        echo "PIPX_HOME=${PIPX_CACHE}${SEP}home" >> $GITHUB_ENV 
+        echo "PIPX_BIN_DIR=${PIPX_CACHE}${SEP}bin" >> $GITHUB_ENV 
+        echo "PIPX_MAN_DIR=${PIPX_CACHE}${SEP}man" >> $GITHUB_ENV 
+        echo "${PIPX_CACHE}${SEP}bin" >> $GITHUB_PATH
+      shell: bash
+
+    # Cache Poetry installation
+    - name: Pipx cache
+      id: pipx-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.pipx-env-setup.outputs.pipx-cache-path }}
+        key: pipx-${{ steps.pipx-env-setup.outputs.pipx-version }}-${{ runner.os }}-python-${{ steps.setup-python-version.outputs.python-version }}-poetry-${{ inputs.poetry-version }}
+
+    - name: Install poetry ${{ inputs.poetry-version }}
+      if: steps.pipx-cache.outputs.cache-hit != 'true'
+      run: pipx install poetry==${{ inputs.poetry-version }} --python ${{ inputs.python-version }}
+      shell: bash
+
+    - name: Setup poetry venv path as environment variable
+      run: echo "POETRY_VENV_PATH=$(poetry config virtualenvs.path)" >> $GITHUB_ENV
+      shell: bash
