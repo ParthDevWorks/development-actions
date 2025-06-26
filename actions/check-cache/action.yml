@@ -8,24 +8,23 @@ inputs:
     description: "Poetry version to use"
     required: true
 
-jobs:
-  check-cache:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Python and Poetry
-        uses: ParthDevWorks/development-actions/actions/install-python-poetry@main
-        with:
-          python-version: ${{ inputs.python-version }}
-          poetry-version: ${{ inputs.poetry-version }}
+runs:
+  using: "composite"
+  steps:
+    - name: Install Python and Poetry
+      uses: ParthDevWorks/development-actions/actions/install-python-poetry@main
+      with:
+        python-version: ${{ inputs.python-version }}
+        poetry-version: ${{ inputs.poetry-version }}
 
-      # Cache Poetry dependencies
-      - name: Poetry cache
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.POETRY_VENV_PATH }}
-          key: poetry-deps-${{ runner.os }}-${{ inputs.python-version }}-${{ inputs.poetry-version }}-${{ hashFiles('**/poetry.lock') }}
+    # Cache Poetry dependencies
+    - name: Poetry cache
+      id: cached-poetry-dependencies
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.POETRY_VENV_PATH }}
+        key: poetry-deps-${{ runner.os }}-${{ inputs.python-version }}-${{ inputs.poetry-version }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --with dev
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --no-interaction --with dev
